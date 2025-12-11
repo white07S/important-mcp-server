@@ -1,0 +1,11 @@
+{
+    "doc_name": "ubs_report",
+    "file_path": "doc-mcp/parser/ubs_report.pdf",
+    "parsed_file_path": "doc-mcp/parser/chunks.json",
+    "taxonomy": "ubs_report",
+    "last_modified": "2024-06-10T12:00:00Z",
+    "title": "UBS Annual Report 2023",
+    "summary": "This document provides a comprehensive overview of UBS's financial performance, strategic initiatives, and market outlook for the year 2023.",
+    "origin": "UBS AG",
+    "owning_divison": "Corporate Communications"
+}

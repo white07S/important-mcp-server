@@ -1,0 +1,296 @@
+{
+  "tables": [
+    {
+      "table_name": "salaries",
+      "primary_key": "emp_no",
+      "foreign_keys": [
+        {
+          "from_column": "emp_no",
+          "to_table": "employees",
+          "to_column": "emp_no",
+          "from_table": "salaries",
+          "relationship_type": "many-to-one",
+          "foreign_key_comment": "Links each salary record to an employee identifier from employees table.",
+          "foreign_key_business_interpretation": "This relationship allows analysts to join salary data with employee personal information, enabling a comprehensive view of earnings history per employee."
+        }
+      ],
+      "columns": [
+        {
+          "column_name": "emp_no",
+          "column_dtype": "TEXT",
+          "column_comment": "Employee number serving as a link to employee data.",
+          "column_business_interpretation": "Key column to join with employees table for detailed employee analyses based on salary history.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "salary",
+          "column_dtype": "INTEGER",
+          "column_comment": "Specific salary amount for the employee during the period.",
+          "column_business_interpretation": "Used to calculate salary trends, averages, and maximums over time, enabling compensation analysis.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "from_date",
+          "column_dtype": "TEXT",
+          "column_comment": "Start date of the salary period.",
+          "column_business_interpretation": "Helps in time-bound analysis, such as salary progression over time or periodic compensation evaluations.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "to_date",
+          "column_dtype": "TEXT",
+          "column_comment": "End date of the salary period.",
+          "column_business_interpretation": "Used with from_date for assessing the duration of a particular salary and comparing changes over time.",
+          "importance_label": "medium"
+        }
+      ],
+      "table_name_comment": "Records salary history details for employees, with from/to dates marking the duration of each salary level.",
+      "primary_key_comment": "Selected emp_no as primary key to facilitate historical tracking of distinct employee salary entries.",
+      "table_name_business_interpretations": "Holds crucial salary information and historical changes, providing insights into employee compensation evolution over their tenure.",
+      "primary_key_business_interpretations": "Enables tracking multiple salary periods for each employee consistently."
+    },
+    {
+      "table_name": "titles",
+      "primary_key": "emp_no",
+      "foreign_keys": [
+        {
+          "from_column": "emp_no",
+          "to_table": "employees",
+          "to_column": "emp_no",
+          "from_table": "titles",
+          "relationship_type": "many-to-one",
+          "foreign_key_comment": "Connects job titles to the employees table by employee number.",
+          "foreign_key_business_interpretation": "Allows analysts to link positions held by employees during their tenure, combining personal details with role-specific insights."
+        }
+      ],
+      "columns": [
+        {
+          "column_name": "emp_no",
+          "column_dtype": "TEXT",
+          "column_comment": "Employee identifier linking to job titles.",
+          "column_business_interpretation": "Joinable with the employees table to enrich analyses with job title history per employee.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "title",
+          "column_dtype": "TEXT",
+          "column_comment": "Job title of the employee within the specified period.",
+          "column_business_interpretation": "Vital for understanding career progression, role transitions, and departmental assignments per employee.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "from_date",
+          "column_dtype": "TEXT",
+          "column_comment": "Date when the job title was assigned.",
+          "column_business_interpretation": "Supports chronology tracking and time-specific job title role assessments.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "to_date",
+          "column_dtype": "TEXT",
+          "column_comment": "Date when the job title ended.",
+          "column_business_interpretation": "Complements from_date to determine duration of title tenure, supporting trend analysis over time.",
+          "importance_label": "medium"
+        }
+      ],
+      "table_name_comment": "Contains historical records of job titles held by employees over their employment period.",
+      "primary_key_comment": "Chosen emp_no for linking multiple titles records to respective employees.",
+      "table_name_business_interpretations": "Key for analyzing employee career path and role dynamics across organizational history.",
+      "primary_key_business_interpretations": "Ensures consistent historical tracking of employee titles."
+    },
+    {
+      "table_name": "dept_emp",
+      "primary_key": "emp_no",
+      "foreign_keys": [
+        {
+          "from_column": "emp_no",
+          "to_table": "employees",
+          "to_column": "emp_no",
+          "from_table": "dept_emp",
+          "relationship_type": "many-to-one",
+          "foreign_key_comment": "Associates department assignments with employees by emp_no.",
+          "foreign_key_business_interpretation": "Enables linkage of departmental assignments to employee datasets, enriching organizational mapping analyses."
+        },
+        {
+          "from_column": "dept_no",
+          "to_table": "departments",
+          "to_column": "dept_no",
+          "from_table": "dept_emp",
+          "relationship_type": "many-to-one",
+          "foreign_key_comment": "Links each department assignment to its department in the departments table.",
+          "foreign_key_business_interpretation": "Aligns department data to employee assignments, key for organizational structure evaluations."
+        }
+      ],
+      "columns": [
+        {
+          "column_name": "emp_no",
+          "column_dtype": "TEXT",
+          "column_comment": "Employee number related to department records.",
+          "column_business_interpretation": "Allows comprehensive mapping of department assignments per employee by joining with employees and departments tables.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "dept_no",
+          "column_dtype": "TEXT",
+          "column_comment": "Department number linked to employee assignment history.",
+          "column_business_interpretation": "Enables cross-referencing of departmental memberships and structural analysis by joining with the departments table.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "from_date",
+          "column_dtype": "TEXT",
+          "column_comment": "The start date of the department assignment.",
+          "column_business_interpretation": "Facilitates temporal analysis of department tenures.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "to_date",
+          "column_dtype": "TEXT",
+          "column_comment": "The end date of the department assignment.",
+          "column_business_interpretation": "With from_date, it allows analysis of duration and frequency of department assignments.",
+          "importance_label": "medium"
+        }
+      ],
+      "table_name_comment": "Tracks department memberships of employees over their career with the organization.",
+      "primary_key_comment": "Primary key on emp_no allows department tracking across employee careers.",
+      "table_name_business_interpretations": "Provides insights into departmental memberships for evaluations of organizational structure and internal mobility.",
+      "primary_key_business_interpretations": "Provides consistent tracking across department assignments for individual employees."
+    },
+    {
+      "table_name": "departments",
+      "primary_key": "dept_no",
+      "foreign_keys": [],
+      "columns": [
+        {
+          "column_name": "dept_no",
+          "column_dtype": "TEXT",
+          "column_comment": "Unique department identifier.",
+          "column_business_interpretation": "Critical for department-level analysis and cross-referencing with employee assignments.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "dept_name",
+          "column_dtype": "TEXT",
+          "column_comment": "Name of the department.",
+          "column_business_interpretation": "Enables department name-based reporting and categorization analyses.",
+          "importance_label": "high"
+        }
+      ],
+      "table_name_comment": "Master table containing information on all organizational departments.",
+      "primary_key_comment": "Department number uniquely identifies each department record.",
+      "table_name_business_interpretations": "A central resource for compiling and analyzing organizational department data.",
+      "primary_key_business_interpretations": "Ensures unique identification of each department throughout the database for accurate relational mapping."
+    },
+    {
+      "table_name": "employees",
+      "primary_key": "emp_no",
+      "foreign_keys": [],
+      "columns": [
+        {
+          "column_name": "emp_no",
+          "column_dtype": "TEXT",
+          "column_comment": "Unique employee identifier serving as a primary key.",
+          "column_business_interpretation": "Joinable with other tables to aggregate comprehensive employee analytics across various dimensions (salary, titles, departments).",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "birth_date",
+          "column_dtype": "TEXT",
+          "column_comment": "Employee's date of birth.",
+          "column_business_interpretation": "Enables demographic studies and age-based analysis.",
+          "importance_label": "medium"
+        },
+        {
+          "column_name": "first_name",
+          "column_dtype": "TEXT",
+          "column_comment": "Employee first name.",
+          "column_business_interpretation": "Used for personalized reports and identities in joint analyses.",
+          "importance_label": "low"
+        },
+        {
+          "column_name": "last_name",
+          "column_dtype": "TEXT",
+          "column_comment": "Employee last name.",
+          "column_business_interpretation": "Critical for identity verification and personalized reporting.",
+          "importance_label": "low"
+        },
+        {
+          "column_name": "gender",
+          "column_dtype": "TEXT",
+          "column_comment": "Gender of the employee.",
+          "column_business_interpretation": "Facilitates gender-based insights and diversity analysis with aggregate data.",
+          "importance_label": "medium"
+        },
+        {
+          "column_name": "hire_date",
+          "column_dtype": "TEXT",
+          "column_comment": "Date when the employee was hired.",
+          "column_business_interpretation": "Foundation for employment duration and tenure analysis.",
+          "importance_label": "high"
+        }
+      ],
+      "table_name_comment": "Core table containing comprehensive personal data of employees in the organization.",
+      "primary_key_comment": "Chosen emp_no as the unique identifier for robust cross-referencing across associated tables.",
+      "table_name_business_interpretations": "Serves as the hub for a wide array of employee personal and professional attributes enabling diverse analyses.",
+      "primary_key_business_interpretations": "Facilitates unique employee tracking across multiple relational records."
+    },
+    {
+      "table_name": "dept_manager",
+      "primary_key": "emp_no",
+      "foreign_keys": [
+        {
+          "from_column": "emp_no",
+          "to_table": "employees",
+          "to_column": "emp_no",
+          "from_table": "dept_manager",
+          "relationship_type": "many-to-one",
+          "foreign_key_comment": "Ties department manager records to employees by emp_no.",
+          "foreign_key_business_interpretation": "Allows identification of leadership roles within departments, streamlining managerial path tracing."
+        },
+        {
+          "from_column": "dept_no",
+          "to_table": "departments",
+          "to_column": "dept_no",
+          "from_table": "dept_manager",
+          "relationship_type": "many-to-one",
+          "foreign_key_comment": "Connects department manager records to specific departments using dept_no.",
+          "foreign_key_business_interpretation": "Key to internal organizational management structures and hierarchical mapping."
+        }
+      ],
+      "columns": [
+        {
+          "column_name": "emp_no",
+          "column_dtype": "TEXT",
+          "column_comment": "Identifier for managers in various departments.",
+          "column_business_interpretation": "Primary path to join with employees for managerial role analysis and leadership tenure evaluations.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "dept_no",
+          "column_dtype": "TEXT",
+          "column_comment": "The department number where the employee acted as manager.",
+          "column_business_interpretation": "Connects to the departments table for department-specific managerial analysis.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "from_date",
+          "column_dtype": "TEXT",
+          "column_comment": "Start date of managerial role.",
+          "column_business_interpretation": "Reflects timeline analyses of managerial tenures, adding depth to leadership studies.",
+          "importance_label": "high"
+        },
+        {
+          "column_name": "to_date",
+          "column_dtype": "TEXT",
+          "column_comment": "End date of the managerial role.",
+          "column_business_interpretation": "Pairs with from_date for managerial duration analysis, informing on management stability.",
+          "importance_label": "medium"
+        }
+      ],
+      "table_name_comment": "Records history of department managers across all organizational departments.",
+      "primary_key_comment": "Use emp_no to track specific managerial changes and tenure history.",
+      "table_name_business_interpretations": "Allows for in-depth analysis on departmental leadership transitions and managerial impact evaluations.",
+      "primary_key_business_interpretations": "Ensures cohesive tracking of managerial history across departments."
+    }
+  ]
+}

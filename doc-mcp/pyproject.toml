@@ -1,0 +1,12 @@
+[project]
+name = "doc-mcp"
+version = "0.1.0"
+description = "Document MCP server backed by Qdrant hybrid search."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=2.0.0",
+    "numpy>=1.26.0",
+    "openai>=1.51.0",
+    "qdrant-client>=1.11.0",
+]
