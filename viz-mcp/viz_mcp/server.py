@@ -31,7 +31,7 @@ class ExplorerClient:
                 f"Schema index not found at {self._index_path}. Run process/index.py first."
             )
         explorer = EChartsExplorer(str(self._index_path))
-        explorer.list_series_types()  # Prime cache
+        explorer.list_series_types()
         self.explorer = explorer
 
     async def aclose(self) -> None:
@@ -68,88 +68,65 @@ async def lifespan(_server: FastMCP):
 mcp = FastMCP(
     name="viz-mcp",
     instructions=(
-        "ECharts visualization server. Use resources to explore chart types and schemas. "
-        "Use generate_chart tool to create validated ECharts option configs from data."
+        "ECharts visualization server. Use resources to explore chart schemas. "
+        "Use generate_chart to create validated ECharts option configs."
     ),
     lifespan=lifespan,
 )
 
 
 # =============================================================================
-# RESOURCES - Schema exploration via MCP resources
+# RESOURCES
 # =============================================================================
 
 @mcp.resource("echarts://charts")
 def resource_list_charts() -> dict[str, Any]:
-    """List all available ECharts chart types."""
+    """List all available ECharts chart types and components."""
     explorer = _get_explorer()
-    series = explorer.list_series_types()
-    components = explorer.list_components()
     return {
-        "chart_types": series,
-        "components": components,
-        "chart_count": len(series),
-        "component_count": len(components),
+        "chart_types": explorer.list_series_types(),
+        "components": explorer.list_components(),
     }
 
 
 @mcp.resource("echarts://charts/{chart_type}")
 def resource_chart_schema(chart_type: str) -> dict[str, Any]:
-    """Get schema details for a specific chart type."""
+    """Get schema for a specific chart type."""
     explorer = _get_explorer()
     series = explorer.explore_series(chart_type)
     if not series:
         return {"error": f"Unknown chart type: {chart_type}", "available": explorer.list_series_types()}
     
     properties = series.get("properties", {})
-    
-    # Prioritize key properties
-    priority = ["type", "data", "name", "id", "coordinateSystem", "smooth", "stack", 
-                "areaStyle", "itemStyle", "label", "emphasis", "symbol", "symbolSize",
-                "radius", "center", "roseType", "indicator", "radarIndex"]
-    
-    key_props = {}
-    for prop in priority:
-        if prop in properties:
-            info = properties[prop]
-            key_props[prop] = {
-                "type": info.get("type"),
-                "default": info.get("default"),
-                "description": info.get("description", "")[:200],
-            }
-            if info.get("options"):
-                key_props[prop]["options"] = info["options"]
-    
-    # Add remaining props
+    formatted = {}
     for prop, info in properties.items():
-        if prop not in key_props and len(key_props) < 40:
-            key_props[prop] = {
-                "type": info.get("type"),
-                "default": info.get("default"),
-            }
+        formatted[prop] = {
+            "type": info.get("type"),
+            "default": info.get("default"),
+            "description": info.get("description", "")[:200],
+        }
+        if info.get("options"):
+            formatted[prop]["options"] = info["options"]
     
     return {
         "chart_type": chart_type,
         "description": series.get("description", ""),
-        "property_count": len(properties),
-        "properties": key_props,
+        "properties": formatted,
     }
 
 
 @mcp.resource("echarts://components/{component}")
 def resource_component_schema(component: str) -> dict[str, Any]:
-    """Get schema details for a component (xAxis, yAxis, tooltip, legend, etc.)."""
+    """Get schema for a component (xAxis, yAxis, tooltip, legend, etc.)."""
     explorer = _get_explorer()
     comp = explorer.explore_component(component)
     if not comp:
         return {"error": f"Unknown component: {component}", "available": explorer.list_components()}
     
     properties = comp.get("properties", {})
-    props_subset = {}
-    for i, (prop, info) in enumerate(properties.items()):
-        if i >= 30:
-            break
-        props_subset[prop] = {
+    formatted = {}
+    for prop, info in properties.items():
+        formatted[prop] = {
             "type": info.get("type"),
             "default": info.get("default"),
             "description": info.get("description", "")[:150],
@@ -158,8 +135,7 @@ def resource_component_schema(component: str) -> dict[str, Any]:
     return {
         "component": component,
         "description": comp.get("description", ""),
-        "property_count": len(properties),
-        "properties": props_subset,
+        "properties": formatted,
     }
 
 
@@ -171,12 +147,11 @@ def resource_search(keyword: str) -> dict[str, Any]:
     return {
         "query": keyword,
         "matches": [{"kind": kind, "path": path} for kind, path in results],
-        "count": len(results),
     }
 
 
 # =============================================================================
-# TOOLS - Minimal set for chart generation
+# TOOLS
 # =============================================================================
 
 @mcp.tool()
@@ -187,12 +162,7 @@ def ping() -> str:
 
 @mcp.tool()
 def list_chart_types() -> dict[str, Any]:
-    """
-    List all available ECharts chart types.
-    
-    Returns:
-        Dictionary with chart_types list and components list.
-    """
+    """List all available ECharts chart types and components."""
     explorer = _get_explorer()
     return {
         "chart_types": explorer.list_series_types(),
@@ -202,43 +172,35 @@ def list_chart_types() -> dict[str, Any]:
 
 @mcp.tool()
 def describe_chart(
-    chart_type: Annotated[str, Field(description="Chart type to describe, e.g., 'line', 'bar', 'pie', 'radar'.")],
+    chart_type: Annotated[str, Field(description="Chart type: 'line', 'bar', 'pie', 'radar', etc.")],
 ) -> dict[str, Any]:
     """
-    Get detailed schema for a specific chart type including all configurable properties.
+    Get full schema for a chart type.
     
-    Use this to understand what properties are available before building a chart config.
-    
-    Args:
-        chart_type: The series type (line, bar, pie, scatter, radar, etc.)
-    
-    Returns:
-        Schema with description and properties for the chart type.
+    Use this to discover available properties before calling generate_chart.
+    Pass relevant properties via chart_spec parameter in generate_chart.
     """
     explorer = _get_explorer()
     series = explorer.explore_series(chart_type)
     if not series:
-        available = explorer.list_series_types()
-        raise ToolError(f"Unknown chart type '{chart_type}'. Available: {', '.join(available[:20])}")
+        raise ToolError(f"Unknown chart type '{chart_type}'. Use list_chart_types first.")
     
     properties = series.get("properties", {})
-    
-    # Format properties for readability
-    formatted_props = {}
+    formatted = {}
     for prop, info in properties.items():
-        formatted_props[prop] = {
+        formatted[prop] = {
             "type": info.get("type"),
             "default": info.get("default"),
             "description": info.get("description", "")[:300],
         }
         if info.get("options"):
-            formatted_props[prop]["options"] = info["options"]
+            formatted[prop]["options"] = info["options"]
     
     return {
         "chart_type": chart_type,
         "description": series.get("description", ""),
         "property_count": len(properties),
-        "properties": formatted_props,
+        "properties": formatted,
     }
 
 
@@ -246,231 +208,145 @@ def describe_chart(
 def generate_chart(
     ctx: Context,
     chart_type: Annotated[str, Field(description="Chart type: 'line', 'bar', 'pie', 'radar', 'scatter', etc.")],
-    data: Annotated[dict[str, Any], Field(description="Data and configuration for the chart.")],
-    title: Annotated[str | None, Field(description="Optional chart title.")] = None,
-    include_tooltip: Annotated[bool, Field(description="Include tooltip config.", default=True)] = True,
-    include_legend: Annotated[bool, Field(description="Include legend config.", default=True)] = True,
+    data: Annotated[Any, Field(description="Chart data. Format depends on chart type.")],
+    chart_spec: Annotated[
+        dict[str, Any] | None,
+        Field(description="Series properties from describe_chart (smooth, stack, radius, itemStyle, etc.).")
+    ] = None,
+    title: Annotated[str | None, Field(description="Chart title.")] = None,
+    tooltip: Annotated[dict[str, Any] | None, Field(description="Tooltip config. {} for defaults, None to omit.")] = None,
+    legend: Annotated[dict[str, Any] | None, Field(description="Legend config. {} for defaults, None to omit.")] = None,
+    x_axis: Annotated[dict[str, Any] | None, Field(description="xAxis config for cartesian charts.")] = None,
+    y_axis: Annotated[dict[str, Any] | None, Field(description="yAxis config for cartesian charts.")] = None,
+    grid: Annotated[dict[str, Any] | None, Field(description="Grid config.")] = None,
+    extra: Annotated[dict[str, Any] | None, Field(description="Additional top-level properties (radar, polar, geo, visualMap, etc.).")] = None,
 ) -> dict[str, Any]:
     """
     Generate a validated ECharts option configuration.
     
-    Takes chart type and data, returns a complete ECharts options dict ready for:
-        myChart.setOption(option)
+    Workflow:
+        1. Call describe_chart(chart_type) to see available properties
+        2. Call generate_chart with data and chart_spec containing desired properties
     
     Args:
         chart_type: Series type (line, bar, pie, radar, scatter, etc.)
-        data: Chart data. Structure depends on chart_type:
-            - line/bar: {"categories": [...], "values": [...]} or {"series": [...]}
-            - pie: {"data": [{"name": "A", "value": 100}, ...]}
-            - radar: {"indicator": [...], "data": [...]}
-            - scatter: {"data": [[x,y], ...]}
+        data: Chart data - structure varies by chart type
+        chart_spec: Series-specific properties from describe_chart
         title: Optional title text
-        include_tooltip: Add tooltip configuration
-        include_legend: Add legend configuration
+        tooltip: Tooltip config, {} for auto, None to omit
+        legend: Legend config, {} for auto, None to omit  
+        x_axis: xAxis config for cartesian charts
+        y_axis: yAxis config for cartesian charts
+        grid: Grid config
+        extra: Top-level properties (radar, polar, geo, etc.)
     
     Returns:
-        Validated ECharts option dict.
+        Validated ECharts option dict ready for setOption()
     
-    Example:
-        generate_chart(
-            chart_type="bar",
-            data={"categories": ["Q1","Q2","Q3"], "values": [100, 200, 150]},
-            title="Quarterly Sales"
-        )
+    Examples:
+        # Simple bar
+        generate_chart("bar", [10, 20, 30], x_axis={"data": ["A", "B", "C"]})
+        
+        # Smooth line with area
+        generate_chart("line", [10, 20, 30], 
+            chart_spec={"smooth": True, "areaStyle": {}},
+            x_axis={"data": ["A", "B", "C"]})
+        
+        # Donut pie
+        generate_chart("pie", 
+            [{"name": "A", "value": 100}, {"name": "B", "value": 200}],
+            chart_spec={"radius": ["40%", "70%"]})
+        
+        # Radar
+        generate_chart("radar",
+            [{"name": "Budget", "value": [80, 90, 70]}],
+            extra={"radar": {"indicator": [
+                {"name": "Sales", "max": 100},
+                {"name": "Tech", "max": 100},
+                {"name": "Support", "max": 100}
+            ]}})
     """
     explorer = _get_explorer()
     
-    # Validate chart type exists
+    # Validate chart type
     if not explorer.explore_series(chart_type):
         available = explorer.list_series_types()
         raise ToolError(f"Unknown chart type '{chart_type}'. Available: {', '.join(available[:15])}")
     
-    # Build the option
     option: dict[str, Any] = {}
     
     # Title
     if title:
         option["title"] = {"text": title}
     
+    # Grid
+    if grid is not None:
+        option["grid"] = grid
+    
+    # Axes
+    if x_axis is not None:
+        option["xAxis"] = {"type": "category", **x_axis}
+    if y_axis is not None:
+        option["yAxis"] = {"type": "value", **y_axis}
+    
+    # Auto-add axes for cartesian charts
+    cartesian_types = {"line", "bar", "scatter", "effectScatter", "candlestick", "boxplot", "heatmap"}
+    if chart_type in cartesian_types:
+        if "xAxis" not in option:
+            option["xAxis"] = {"type": "category"}
+        if "yAxis" not in option:
+            option["yAxis"] = {"type": "value"}
+    
     # Tooltip
-    if include_tooltip:
-        if chart_type in ("pie", "radar", "funnel", "gauge"):
-            option["tooltip"] = {"trigger": "item"}
+    if tooltip is not None:
+        if tooltip == {}:
+            if chart_type in {"pie", "radar", "funnel", "gauge", "treemap", "sunburst"}:
+                option["tooltip"] = {"trigger": "item"}
+            else:
+                option["tooltip"] = {"trigger": "axis"}
         else:
-            option["tooltip"] = {"trigger": "axis"}
+            option["tooltip"] = tooltip
     
-    # Build series and axes based on chart type
-    if chart_type in ("line", "bar", "scatter"):
-        option.update(_build_cartesian_chart(chart_type, data, include_legend))
-    elif chart_type == "pie":
-        option.update(_build_pie_chart(data, include_legend))
-    elif chart_type == "radar":
-        option.update(_build_radar_chart(data, include_legend))
-    else:
-        # Generic: pass data directly to series
-        option.update(_build_generic_chart(chart_type, data, include_legend))
+    # Extra top-level properties first (radar, polar, etc.)
+    if extra:
+        for key, value in extra.items():
+            option[key] = value
     
-    # Validate the generated option
+    # Build series
+    series_config: dict[str, Any] = {"type": chart_type, "data": data}
+    
+    # Merge chart_spec
+    if chart_spec:
+        series_config.update(chart_spec)
+    
+    option["series"] = [series_config]
+    
+    # Legend
+    if legend is not None:
+        if legend == {}:
+            legend_data = _extract_legend_data(data)
+            option["legend"] = {"data": legend_data} if legend_data else {}
+        else:
+            option["legend"] = legend
+    
+    # Validate
     result = explorer.validate_option(option)
     
     if not result.valid:
         ctx.info(f"Validation errors: {result.errors}")
-        raise ToolError(f"Generated config has errors: {result.errors}")
+        raise ToolError(f"Invalid config: {result.errors}")
     
     if result.warnings:
-        ctx.info(f"Validation warnings: {result.warnings}")
+        ctx.info(f"Warnings: {result.warnings}")
     
     return option
 
 
-def _build_cartesian_chart(chart_type: str, data: dict[str, Any], include_legend: bool) -> dict[str, Any]:
-    """Build line/bar/scatter chart config."""
-    result: dict[str, Any] = {}
-    
-    # Handle different data formats
-    if "categories" in data and "values" in data:
-        # Simple format: {categories: [...], values: [...]}
-        result["xAxis"] = {"type": "category", "data": data["categories"]}
-        result["yAxis"] = {"type": "value"}
-        result["series"] = [{"type": chart_type, "data": data["values"]}]
-        
-        if "name" in data:
-            result["series"][0]["name"] = data["name"]
-            if include_legend:
-                result["legend"] = {"data": [data["name"]]}
-    
-    elif "series" in data:
-        # Multiple series format
-        categories = data.get("categories", data.get("xAxis", []))
-        result["xAxis"] = {"type": "category", "data": categories}
-        result["yAxis"] = {"type": "value"}
-        
-        series_list = data["series"]
-        result["series"] = []
-        legend_data = []
-        
-        for s in series_list:
-            series_config = {"type": chart_type, "data": s.get("data", s.get("values", []))}
-            if "name" in s:
-                series_config["name"] = s["name"]
-                legend_data.append(s["name"])
-            # Pass through other properties
-            for key in ("stack", "smooth", "areaStyle", "itemStyle", "label"):
-                if key in s:
-                    series_config[key] = s[key]
-            result["series"].append(series_config)
-        
-        if include_legend and legend_data:
-            result["legend"] = {"data": legend_data}
-    
-    elif "data" in data:
-        # Scatter/direct data format
-        result["xAxis"] = data.get("xAxis", {"type": "value"})
-        result["yAxis"] = data.get("yAxis", {"type": "value"})
-        result["series"] = [{"type": chart_type, "data": data["data"]}]
-    
-    else:
-        # Pass through as-is
-        result["xAxis"] = data.get("xAxis", {"type": "category"})
-        result["yAxis"] = data.get("yAxis", {"type": "value"})
-        result["series"] = [{"type": chart_type, **data}]
-    
-    return result
-
-
-def _build_pie_chart(data: dict[str, Any], include_legend: bool) -> dict[str, Any]:
-    """Build pie chart config."""
-    result: dict[str, Any] = {}
-    
-    pie_data = data.get("data", data.get("values", []))
-    
-    series_config: dict[str, Any] = {
-        "type": "pie",
-        "data": pie_data,
-    }
-    
-    # Optional properties
-    if "radius" in data:
-        series_config["radius"] = data["radius"]
-    if "center" in data:
-        series_config["center"] = data["center"]
-    if "roseType" in data:
-        series_config["roseType"] = data["roseType"]
-    if "name" in data:
-        series_config["name"] = data["name"]
-    
-    result["series"] = [series_config]
-    
-    # Legend from data names
-    if include_legend:
-        legend_data = [item.get("name") for item in pie_data if isinstance(item, dict) and "name" in item]
-        if legend_data:
-            result["legend"] = {"data": legend_data}
-    
-    return result
-
-
-def _build_radar_chart(data: dict[str, Any], include_legend: bool) -> dict[str, Any]:
-    """Build radar chart config."""
-    result: dict[str, Any] = {}
-    
-    # Radar requires indicator
-    indicator = data.get("indicator", [])
-    result["radar"] = {"indicator": indicator}
-    
-    if "shape" in data:
-        result["radar"]["shape"] = data["shape"]
-    
-    # Series data
-    radar_data = data.get("data", data.get("series", []))
-    series_config: dict[str, Any] = {
-        "type": "radar",
-        "data": radar_data,
-    }
-    if "name" in data:
-        series_config["name"] = data["name"]
-    
-    result["series"] = [series_config]
-    
-    # Legend
-    if include_legend:
-        legend_data = [item.get("name") for item in radar_data if isinstance(item, dict) and "name" in item]
-        if legend_data:
-            result["legend"] = {"data": legend_data}
-    
-    return result
-
-
-def _build_generic_chart(chart_type: str, data: dict[str, Any], include_legend: bool) -> dict[str, Any]:
-    """Build generic chart config by passing data through."""
-    result: dict[str, Any] = {}
-    
-    # Extract series data
-    series_data = data.get("data", data.get("series", []))
-    
-    series_config: dict[str, Any] = {"type": chart_type}
-    
-    if isinstance(series_data, list):
-        series_config["data"] = series_data
-    else:
-        series_config.update(data)
-    
-    # Pass through common properties
-    for key in ("name", "radius", "center", "itemStyle", "label", "emphasis"):
-        if key in data:
-            series_config[key] = data[key]
-    
-    result["series"] = [series_config]
-    
-    # Add axes if needed for certain chart types
-    if chart_type in ("heatmap", "boxplot", "candlestick"):
-        result["xAxis"] = data.get("xAxis", {"type": "category"})
-        result["yAxis"] = data.get("yAxis", {"type": "value"})
-    
-    if include_legend and "name" in data:
-        result["legend"] = {"data": [data["name"]]}
-    
-    return result
+def _extract_legend_data(data: Any) -> list[str]:
+    """Extract legend names from data."""
+    if isinstance(data, list):
+        return [item["name"] for item in data if isinstance(item, dict) and "name" in item]
+    return []
 
 
 if __name__ == "__main__":
